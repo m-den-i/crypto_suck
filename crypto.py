@@ -12,11 +12,8 @@ class RSASucker:
         self.public = base64.b64encode(new_key.publickey().exportKey("DER")).decode()
         self._rsa = PKCS1_OAEP.new(new_key)
 
-    def decrypt(self, json, keys):
-        for k in keys:
-            b64decoded = base64.b64decode(json[k])
-            json[k] = self._rsa.decrypt(b64decoded)
-        return json
+    def decrypt(self, data):
+        return self._rsa.decrypt(base64.b64decode(data))
 
 
 class AESSucker:
@@ -48,9 +45,9 @@ class TOTP:
         self.secret = secret
 
     def token(self):
-        timestamp = int(time.time() // 30)
-        to_bytes = timestamp.to_bytes(8, 'big')
-        hash_value = hmac(self.secret, to_bytes, hashlib.sha1).digest()
+        timestamp = int(time.time() // 30).to_bytes(8, 'big')
+        hash_value = hmac(self.secret, timestamp, hashlib.sha1).digest()
+
         offset = hash_value[19] & 0xf
         truncated = hash_value[offset] & 0x7f
         for i in range(1, 4):

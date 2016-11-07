@@ -41,8 +41,8 @@ class Client:
 
         self.session_id = data['sessionId']
         if self.use_encryption:
-            data = self.rsa.decrypt(data, ['aesKey', 'ivector'])
-            self.aes = crypto.AESSucker(data['aesKey'], data['ivector'])
+            self.aes = crypto.AESSucker(self.rsa.decrypt(data['aesKey']),
+                                        self.rsa.decrypt(data['ivector']))
 
     def login(self, login, password):
         data = {
