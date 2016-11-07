@@ -38,8 +38,8 @@ class AESSucker:
         return base64.b64encode(self.cipher.encrypt(data)).decode()
 
     def decrypt(self, data):
-        decrypted = self.cipher.decrypt(data)
-        return decrypted[:-ord(decrypted[-1])]
+        decrypted = self.cipher.decrypt(base64.b64decode(data))
+        return decrypted[:-decrypted[-1]]
 
 
 class TOTP:

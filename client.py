@@ -1,5 +1,3 @@
-from base64 import b64decode
-
 import crypto
 import requests
 
@@ -27,6 +25,7 @@ class Client:
         if response.status_code != 200:
             raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
         elif response.json()['errorDto']['code'] is not None:
+            print(response.json())
             raise ServerError(response.json()['errorDto']['message'])
         elif self.session_id and self.session_id != response.json()['data']['sessionId']:
             # Should be another exception
@@ -34,15 +33,16 @@ class Client:
 
     def connect(self):
         data = {
-            'rsaKey': self.rsa.public,
+            'rsaKey': self.rsa.public if self.use_encryption else '',
             'encryption': self.use_encryption,
             'postCode': self.use_verification
         }
         data = self.make_request('rsakey', data)
 
         self.session_id = data['sessionId']
-        data = self.rsa.decrypt(data, ['aesKey', 'ivector'])
-        self.aes = crypto.AESSucker(data['aesKey'], data['ivector'])
+        if self.use_encryption:
+            data = self.rsa.decrypt(data, ['aesKey', 'ivector'])
+            self.aes = crypto.AESSucker(data['aesKey'], data['ivector'])
 
     def login(self, login, password):
         data = {
@@ -66,7 +66,7 @@ class Client:
         self.build_token(data)
 
     def build_token(self, data):
-        self.totp = crypto.TOTP(b64decode(data['secret']))
+        self.totp = crypto.TOTP(self.aes.decrypt(data['secret']))
         token = self.totp.token()
         data = self.make_request('token', data={'session_id': self.session_id, 'token': str(token)})
 
