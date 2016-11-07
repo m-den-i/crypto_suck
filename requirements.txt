@@ -1,0 +1,4 @@
+pycrypto==2.6.1
+PyQt5==5.7
+requests==2.11.1
+sip==4.18.1
