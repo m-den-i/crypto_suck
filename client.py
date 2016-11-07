@@ -66,9 +66,12 @@ class Client:
         self.build_token(data)
 
     def build_token(self, data):
-        self.totp = crypto.TOTP(self.aes.decrypt(data['secret']))
+        self.totp = crypto.TOTP(self.decrypt(data['secret']))
         token = self.totp.token()
-        data = self.make_request('token', data={'session_id': self.session_id, 'token': str(token)})
+        data = self.make_request('token', data={'session_id': self.session_id, 'token': token})
+
+    def decrypt(self, data):
+        return data if not self.use_encryption else self.aes.decrypt(data)
 
     def encrypt(self, data):
         return data if not self.use_encryption else self.aes.encrypt(data)
