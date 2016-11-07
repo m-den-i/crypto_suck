@@ -1,7 +1,3 @@
-import os
-import sys
-from PyQt5.QtWidgets import QApplication
-from ui import ClientApp
 import crypto
 import requests
 
@@ -49,14 +45,9 @@ class Client:
         return data if not self.use_encryption else self.aes.encrypt(data)
 
 
-def main():
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
-
-    app = QApplication(sys.argv)
-    ex = ClientApp(client)
-    ex.show()
-    sys.exit(app.exec_())
-
-
 if __name__ == '__main__':
-    main()
+    import os
+    import sys
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
+    client.connect()
+    client.login(*sys.argv[1:])
