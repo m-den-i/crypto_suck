@@ -1,34 +1,47 @@
+import os
 import sys
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
-from ui import Ui_MainWindow
+from PyQt5.QtWidgets import QApplication
+from ui import ClientApp
 import crypto
 import requests
 
 
-def connect():
-    rsa_sucker = crypto.RSASucker()
-    resp = requests.post("http://127.0.0.1:8084/google/rsakey", data=rsa_sucker._pub)
-    dt = resp.json()['data']
-    dt = rsa_sucker.decrypt(dt, ['aesKey', 'ivector'])
-    aes_sucker = crypto.AESSucker(dt['aesKey'], dt['ivector'])
-    del dt['aesKey']
-    del dt['ivector']
+class Client:
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.rsa = crypto.RSASucker()
+        self.session_id = None
+        self.aes = None
 
+    def connect(self):
+        resp = requests.post(self.base_url + 'rsakey', data=self.rsa._pub)
+        dt = resp.json()['data']
+        self.session_id = dt['sessionId']
+        dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
+        self.aes = crypto.AESSucker(dt['aesKey'], dt['ivector'])
 
-class Editor(QMainWindow):
+    def login(self, login, password):
+        data = {
+            'sessionId': self.session_id,
+            'login': self.aes.encrypt(login),
+            'password': self.aes.encrypt(password),
+        }
+        resp = requests.post(self.base_url + 'login', json=data)
 
-    def __init__(self):
-        super(Editor, self).__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-        self.show()
+        if resp.status_code == 200:
+            return True
+        return False
 
 
 def main():
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8084/google/'))
+    client.connect()
+
     app = QApplication(sys.argv)
-    ex = Editor()
+    ex = ClientApp(client)
+    ex.show()
     sys.exit(app.exec_())
 
+
 if __name__ == '__main__':
-    connect()
-    # main`()
+    main()
