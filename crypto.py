@@ -1,6 +1,7 @@
 import base64
 import time
 import hashlib
+from hmac import new as hmac
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
@@ -48,14 +49,12 @@ class TOTP:
 
     def token(self):
         timestamp = int(time.time() // 30)
-
-        hmac = hashlib.sha1(self.secret)
-        hmac.update(timestamp.to_bytes(8, 'big'))
-        hash = hmac.digest()
-        offset = hash[19] & 0xf
-        truncated = hash[offset] & 0x7f
-        for i in range(4):
+        to_bytes = timestamp.to_bytes(8, 'big')
+        hash_value = hmac(self.secret, to_bytes, hashlib.sha1).digest()
+        offset = hash_value[19] & 0xf
+        truncated = hash_value[offset] & 0x7f
+        for i in range(1, 4):
             truncated <<= 8
-            truncated |= hash[offset + i] & 0xff
+            truncated |= hash_value[offset + i] & 0xff
 
         return truncated % 1000000
