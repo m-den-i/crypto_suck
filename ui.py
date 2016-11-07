@@ -145,8 +145,11 @@ if __name__ == '__main__':
     import sys
     from client import Client
 
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
-
+    if len(sys.argv) > 1:
+        url = sys.argv[1]
+    else:
+        url = os.environ.get('BASE_URL', 'http://127.0.0.1:8080/')
+    client = Client(url)
     app = QtWidgets.QApplication(sys.argv)
     ex = ClientApp(client)
     ex.show()
