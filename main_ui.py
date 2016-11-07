@@ -36,6 +36,15 @@ class Client:
             return True
         return False
 
+    def verify(self, code):
+        data = {
+            'code': code if not self.use_encryption else self.aes.encrypt(code),
+            'sessionId': self.session_id
+        }
+
+        resp = requests.post(self.base_url + 'verify', json=data)
+        # todo: check
+
 
 def main():
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
