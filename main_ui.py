@@ -20,6 +20,17 @@ class Client:
         dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
         self.aes = crypto.AESSucker(dt['aesKey'], dt['ivector'])
 
+    def login(self, login, password):
+        data = {
+            'sessionId': self.session_id,
+            'login': self.aes.encrypt(login),
+            'password': self.aes.encrypt(password),
+        }
+        resp = requests.post(self.base_url + 'login', json=data)
+
+        if resp.status_code == 200:
+            return True
+        return False
 
 
 def main():
