@@ -27,8 +27,8 @@ class Client:
     def login(self, login, password):
         data = {
             'sessionId': self.session_id,
-            'login': self.aes.encrypt(login),
-            'password': self.aes.encrypt(password),
+            'login': self.encrypt(login),
+            'password': self.encrypt(password),
         }
         resp = requests.post(self.base_url + 'login', json=data)
 
@@ -38,12 +38,15 @@ class Client:
 
     def verify(self, code):
         data = {
-            'code': code if not self.use_encryption else self.aes.encrypt(code),
+            'code': self.encrypt(code),
             'sessionId': self.session_id
         }
 
         resp = requests.post(self.base_url + 'verify', json=data)
         # todo: check
+
+    def encrypt(self, data):
+        return data if not self.use_encryption else self.aes.encrypt(data)
 
 
 def main():
