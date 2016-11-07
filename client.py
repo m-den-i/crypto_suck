@@ -24,10 +24,10 @@ class Client:
     def check_response(self, response):
         if response.status_code != 200:
             raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
-        elif response.json()['errorDto']['code'] is not None:
-            print(response.json())
+        data = response.json()
+        if data['errorDto']['code'] is not None:
             raise ServerError(response.json()['errorDto']['message'])
-        elif self.session_id and self.session_id != response.json()['data']['sessionId']:
+        elif self.session_id and 'sessionId' in data and self.session_id != response.json()['data']['sessionId']:
             # Should be another exception
             raise ServerError('Invalid SessionID. ')
 
@@ -68,7 +68,7 @@ class Client:
     def build_token(self, data):
         self.totp = crypto.TOTP(self.decrypt(data['secret']))
         token = self.totp.token()
-        data = self.make_request('token', data={'session_id': self.session_id, 'token': token})
+        data = self.make_request('token', data={'sessionId': self.session_id, 'token': token})
 
     def decrypt(self, data):
         return data if not self.use_encryption else self.aes.decrypt(data)
