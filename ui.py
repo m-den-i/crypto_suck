@@ -9,7 +9,12 @@ class ClientApp(QtWidgets.QWidget):
     def __init__(self, client, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = client
-        self.stacked = QtWidgets.QStackedLayout(self)
+
+        layout = QtWidgets.QVBoxLayout(self)
+        self.error_message = QtWidgets.QLabel()
+
+        self.stacked = QtWidgets.QStackedLayout()
+        layout.addLayout(self.stacked)
 
         self.stack = StackWidget(self)
         self.stacked.addWidget(self.stack)
@@ -22,6 +27,12 @@ class ClientApp(QtWidgets.QWidget):
 
         self.documents = DocumentsWidget(self)
         self.stacked.addWidget(self.documents)
+
+    def show_error(self, message):
+        self.error_message.setText(message)
+
+    def hide_error(self):
+        self.error_message.setText('')
 
     def set_stack(self, encryption, verification):
         self.client.use_encryption = encryption
