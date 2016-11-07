@@ -19,6 +19,7 @@ class Client:
         resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa.public,
                                                              'encryption': self.use_encryption,
                                                              'postCode': self.use_verification})
+        print(resp.json())
         dt = resp.json()['data']
         self.session_id = dt['sessionId']
         dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
@@ -38,7 +39,7 @@ class Client:
 
 
 def main():
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/google/'))
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
 
     app = QApplication(sys.argv)
     ex = ClientApp(client)
