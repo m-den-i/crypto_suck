@@ -14,7 +14,7 @@ class Client:
         self.rsa = crypto.RSASucker()
         self.session_id = None
         self.aes = None
-        self.secret = None
+        self.totp = None
         self.use_encryption = use_encryption
         self.use_verification = use_verification
 
@@ -66,7 +66,9 @@ class Client:
         self.build_token(data)
 
     def build_token(self, data):
-        self.secret = b64decode(data['secret'])
+        self.totp = crypto.TOTP(b64decode(data['secret']))
+        token = self.totp.token()
+        data = self.make_request('token', data={'session_id': self.session_id, 'token': str(token)})
 
     def encrypt(self, data):
         return data if not self.use_encryption else self.aes.encrypt(data)

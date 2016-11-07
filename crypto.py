@@ -1,6 +1,8 @@
 import base64
+import time
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
+from Crypto.Hash import SHA256 as SHA
 
 
 class RSASucker:
@@ -38,3 +40,21 @@ class AESSucker:
     def decrypt(self, data):
         decrypted = self.cipher.decrypt(data)
         return decrypted[:-ord(decrypted[-1])]
+
+
+class TOTP:
+    def __init__(self, secret):
+        self.secret = secret
+
+    def token(self):
+        timestamp = int(time.time() // 1000 // 30)
+        hmac = SHA.new(self.secret)
+        hmac.update(timestamp.to_bytes(8, 'big'))
+        hash = hmac.digest()
+        offset = hash[19] & 0xf
+        truncated = hash[offset] & 0x7f
+        for i in range(4):
+            truncated <<= 8
+            truncated |= hash[offset + i] & 0xff
+
+        return truncated % 1000000
