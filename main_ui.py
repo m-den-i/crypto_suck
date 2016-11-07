@@ -1,13 +1,16 @@
+import os
 import sys
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
 from ui import Ui_MainWindow
 import crypto
 import requests
 
+base_url = os.environ.get('BASE_URL', 'http://127.0.0.1:8084/google/')
+
 
 def connect():
     rsa_sucker = crypto.RSASucker()
-    resp = requests.post("http://127.0.0.1:8084/google/rsakey", data=rsa_sucker._pub)
+    resp = requests.post(base_url + "rsakey", data=rsa_sucker._pub)
     dt = resp.json()['data']
     dt = rsa_sucker.decrypt(dt, ['aesKey', 'ivector'])
     aes_sucker = crypto.AESSucker(dt['aesKey'], dt['ivector'])
