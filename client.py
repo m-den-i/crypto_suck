@@ -1,5 +1,8 @@
+from base64 import b64decode
+
 import crypto
 import requests
+
 
 class ServerError(Exception):
     pass
@@ -11,24 +14,35 @@ class Client:
         self.rsa = crypto.RSASucker()
         self.session_id = None
         self.aes = None
+        self.secret = None
         self.use_encryption = use_encryption
         self.use_verification = use_verification
 
-    @staticmethod
-    def check_response(response):
+    def make_request(self, endpoint, data):
+        response = requests.post(self.base_url + endpoint, json=data)
+        self.check_response(response)
+        return response.json()['data']
+
+    def check_response(self, response):
         if response.status_code != 200:
-            raise ServerError("HTTP Response error: {} {}".format(response.status_code, response.reason))
+            raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
         elif response.json()['errorDto']['code'] is not None:
             raise ServerError(response.json()['errorDto']['message'])
+        elif self.session_id and self.session_id != response.json()['data']['sessionId']:
+            # Should be another exception
+            raise ServerError('Invalid SessionID. ')
 
     def connect(self):
-        resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa.public,
-                                                             'encryption': self.use_encryption,
-                                                             'postCode': self.use_verification})
-        dt = resp.json()['data']
-        self.session_id = dt['sessionId']
-        dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
-        self.aes = crypto.AESSucker(dt['aesKey'], dt['ivector'])
+        data = {
+            'rsaKey': self.rsa.public,
+            'encryption': self.use_encryption,
+            'postCode': self.use_verification
+        }
+        data = self.make_request('rsakey', data)
+
+        self.session_id = data['sessionId']
+        data = self.rsa.decrypt(data, ['aesKey', 'ivector'])
+        self.aes = crypto.AESSucker(data['aesKey'], data['ivector'])
 
     def login(self, login, password):
         data = {
@@ -36,8 +50,11 @@ class Client:
             'login': self.encrypt(login),
             'password': self.encrypt(password),
         }
-        resp = requests.post(self.base_url + 'login', json=data)
-        self.check_response(resp)
+
+        data = self.make_request('login', data)
+
+        if not self.use_verification:
+            self.build_token(data)
 
     def verify(self, code):
         data = {
@@ -45,8 +62,11 @@ class Client:
             'sessionId': self.session_id
         }
 
-        resp = requests.post(self.base_url + 'verify', json=data)
-        self.check_response(resp)
+        data = self.make_request('verify', data)
+        self.build_token(data)
+
+    def build_token(self, data):
+        self.secret = b64decode(data['secret'])
 
     def encrypt(self, data):
         return data if not self.use_encryption else self.aes.encrypt(data)
