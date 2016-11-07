@@ -14,7 +14,9 @@ class Client:
         self.aes = None
 
     def connect(self):
-        resp = requests.post(self.base_url + 'rsakey', data=self.rsa._pub)
+        resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa._pub,
+                                                             'encryption': True,
+                                                             'postCode': False})
         dt = resp.json()['data']
         self.session_id = dt['sessionId']
         dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
