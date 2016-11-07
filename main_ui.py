@@ -7,16 +7,18 @@ import requests
 
 
 class Client:
-    def __init__(self, base_url):
+    def __init__(self, base_url, use_encryption=True, use_verification=False):
         self.base_url = base_url
         self.rsa = crypto.RSASucker()
         self.session_id = None
         self.aes = None
+        self.use_encryption = use_encryption
+        self.use_verification = use_verification
 
     def connect(self):
         resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa._pub,
-                                                             'encryption': True,
-                                                             'postCode': False})
+                                                             'encryption': self.use_encryption,
+                                                             'postCode': self.use_verification})
         dt = resp.json()['data']
         self.session_id = dt['sessionId']
         dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
