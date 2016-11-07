@@ -8,8 +8,12 @@ class ClientApp(QtWidgets.QWidget):
         super().__init__(*args, **kwargs)
         self.client = client
         self.stacked = QtWidgets.QStackedLayout(self)
+
         self.login = LoginWidget(self)
         self.stacked.addWidget(self.login)
+
+        self.verify = CodeVerificationWidget(self)
+        self.stacked.addWidget(self.verify)
 
     def on_login(self, login, password):
         if self.client.login(login, password):
@@ -18,7 +22,7 @@ class ClientApp(QtWidgets.QWidget):
             # TODO: show an error message
             self.stacked.setCurrentIndex(0)
 
-    def verify(self, code):
+    def on_verify(self, code):
         if self.client.verify(code):
             self.stacked.setCurrentIndex(2)
         else:
@@ -50,3 +54,21 @@ class LoginWidget(QtWidgets.QWidget):
 
     def on_submit(self):
         self.app.on_login(self.login_edit.text(), self.password_edit.text())
+
+
+class CodeVerificationWidget(QtWidgets.QWidget):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+
+        layout = QtWidgets.QFormLayout(self)
+
+        self.code_edit = QtWidgets.QLineEdit()
+        layout.addRow('Code', self.code_edit)
+
+        self.submit_button = QtWidgets.QPushButton()
+        self.submit_button.clicked.connect(self.submit)
+        layout.addWidget(self.submit_button)
+
+    def submit(self):
+        self.app.verify(self.code_edit.text())
