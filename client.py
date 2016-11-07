@@ -1,6 +1,9 @@
 import crypto
 import requests
 
+class ServerError(Exception):
+    pass
+
 
 class Client:
     def __init__(self, base_url, use_encryption=True, use_verification=False):
@@ -10,6 +13,13 @@ class Client:
         self.aes = None
         self.use_encryption = use_encryption
         self.use_verification = use_verification
+
+    @staticmethod
+    def check_response(response):
+        if response.status_code != 200:
+            raise ServerError("HTTP Response error: {} {}".format(response.status_code, response.reason))
+        elif response.json()['errorDto']['code'] is not None:
+            raise ServerError(response.json()['errorDto']['message'])
 
     def connect(self):
         resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa.public,
@@ -27,10 +37,7 @@ class Client:
             'password': self.encrypt(password),
         }
         resp = requests.post(self.base_url + 'login', json=data)
-
-        if resp.status_code == 200:
-            return True
-        return False
+        self.check_response(resp)
 
     def verify(self, code):
         data = {
@@ -39,7 +46,7 @@ class Client:
         }
 
         resp = requests.post(self.base_url + 'verify', json=data)
-        # todo: check
+        self.check_response(resp)
 
     def encrypt(self, data):
         return data if not self.use_encryption else self.aes.encrypt(data)
