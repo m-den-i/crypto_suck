@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from client import ServerError
 
 
 class ClientApp(QtWidgets.QWidget):
@@ -12,6 +13,7 @@ class ClientApp(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
         self.error_message = QtWidgets.QLabel()
+        layout.addWidget(self.error_message)
 
         self.stacked = QtWidgets.QStackedLayout()
         layout.addLayout(self.stacked)
@@ -34,25 +36,29 @@ class ClientApp(QtWidgets.QWidget):
     def hide_error(self):
         self.error_message.setText('')
 
+    def change_view(self, index):
+        self.hide_error()
+        self.stacked.setCurrentIndex(index)
+
     def set_stack(self, encryption, verification):
         self.client.use_encryption = encryption
         self.client.use_verification = verification
         self.client.connect()
-        self.stacked.setCurrentIndex(self.LOGIN)
+        self.change_view(self.LOGIN)
 
     def on_login(self, login, password):
-        if self.client.login(login, password):
-            self.stacked.setCurrentIndex(self.VERIFY if self.client.use_verification else self.DOCUMENTS)
-        else:
-            # TODO: show an error message
-            self.stacked.setCurrentIndex(self.LOGIN)
+        try:
+            self.client.login(login, password)
+            self.change_view(self.VERIFY if self.client.use_verification else self.DOCUMENTS)
+        except ServerError as e:
+            self.show_error(str(e))
 
     def on_verify(self, code):
-        if self.client.verify(code):
-            self.stacked.setCurrentIndex(self.DOCUMENTS)
-        else:
-            # TODO: show an error message
-            self.stacked.setCurrentIndex(self.VERIFY)
+        try:
+            self.client.verify(code)
+            self.change_view(self.DOCUMENTS)
+        except ServerError as e:
+            self.show_error(str(e))
 
 
 class StackWidget(QtWidgets.QWidget):
@@ -134,7 +140,8 @@ class DocumentsWidget(QtWidgets.QWidget):
 if __name__ == '__main__':
     import os
     import sys
-    from .client import Client
+    from client import Client
+
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
 
     app = QtWidgets.QApplication(sys.argv)
