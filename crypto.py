@@ -1,8 +1,8 @@
 import base64
 import time
+import hashlib
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
-from Crypto.Hash import SHA256 as SHA
 
 
 class RSASucker:
@@ -47,8 +47,9 @@ class TOTP:
         self.secret = secret
 
     def token(self):
-        timestamp = int(time.time() // 1000 // 30)
-        hmac = SHA.new(self.secret)
+        timestamp = int(time.time() // 30)
+
+        hmac = hashlib.sha1(self.secret)
         hmac.update(timestamp.to_bytes(8, 'big'))
         hash = hmac.digest()
         offset = hash[19] & 0xf
