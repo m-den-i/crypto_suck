@@ -1,4 +1,5 @@
 import base64
+from Crypto.Cipher import PKCS1_OAEP
 
 
 class RSASucker:
@@ -6,7 +7,7 @@ class RSASucker:
         from Crypto.PublicKey import RSA
         new_key = RSA.generate(bits, e=e)
         self._pub = base64.b64encode(new_key.publickey().exportKey("DER"))
-        self._rsa = new_key
+        self._rsa = PKCS1_OAEP.new(new_key)
 
     def decrypt(self, json, keys):
         for k in keys:
