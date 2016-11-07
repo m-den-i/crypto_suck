@@ -47,6 +47,9 @@ class ClientApp(QtWidgets.QWidget):
         self.change_view(self.LOGIN)
 
     def on_login(self, login, password):
+        if not login or not password:
+            self.show_error('Login and/or password cannot be empty.')
+            return
         try:
             self.client.login(login, password)
             self.change_view(self.VERIFY if self.client.use_verification else self.DOCUMENTS)
