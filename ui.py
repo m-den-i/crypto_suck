@@ -119,7 +119,7 @@ class CodeVerificationWidget(QtWidgets.QWidget):
         self.code_edit = QtWidgets.QLineEdit()
         layout.addRow('Code', self.code_edit)
 
-        self.submit_button = QtWidgets.QPushButton()
+        self.submit_button = QtWidgets.QPushButton('OK')
         self.submit_button.clicked.connect(self.submit)
         layout.addWidget(self.submit_button)
 

@@ -1,6 +1,7 @@
 import crypto
 import requests
-
+import time
+import base64
 
 class ServerError(Exception):
     pass
@@ -71,10 +72,10 @@ class Client:
         data = self.make_request('token', data={'sessionId': self.session_id, 'token': token})
 
     def decrypt(self, data):
-        return data if not self.use_encryption else self.aes.decrypt(data)
+        return base64.b64decode(data) if not self.use_encryption else self.aes.decrypt(data)
 
     def encrypt(self, data):
-        return data if not self.use_encryption else self.aes.encrypt(data)
+        return base64.b64encode(bytes(data, 'utf-8')).decode() if not self.use_encryption else self.aes.encrypt(data)
 
 
 if __name__ == '__main__':
