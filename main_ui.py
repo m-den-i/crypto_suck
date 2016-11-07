@@ -1,7 +1,7 @@
 import os
 import sys
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
-from ui import LoginWidget
+from PyQt5.QtWidgets import QApplication
+from ui import ClientApp
 import crypto
 import requests
 
@@ -35,11 +35,13 @@ class Client:
 
 def main():
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8084/google/'))
+    client.connect()
 
     app = QApplication(sys.argv)
-    ex = LoginWidget()
+    ex = ClientApp(client)
     ex.show()
     sys.exit(app.exec_())
+
 
 if __name__ == '__main__':
     main()

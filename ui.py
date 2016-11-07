@@ -3,9 +3,34 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 
+class ClientApp(QtWidgets.QWidget):
+    def __init__(self, client, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.client = client
+        self.stacked = QtWidgets.QStackedLayout(self)
+        self.login = LoginWidget(self)
+        self.stacked.addWidget(self.login)
+
+    def on_login(self, login, password):
+        if self.client.login(login, password):
+            self.stacked.setCurrentIndex(1)
+        else:
+            # TODO: show an error message
+            self.stacked.setCurrentIndex(0)
+
+    def verify(self, code):
+        if self.client.verify(code):
+            self.stacked.setCurrentIndex(2)
+        else:
+            # TODO: show an error message
+            self.stacked.setCurrentIndex(1)
+
+
 class LoginWidget(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, app):
         super().__init__()
+        self.app = app
+
         self.setObjectName('Login')
         self.setMinimumWidth(250)
 
@@ -24,5 +49,4 @@ class LoginWidget(QtWidgets.QWidget):
         layout.addWidget(self.submit_button)
 
     def on_submit(self):
-        login = self.login_edit.text()
-        password = self.password_edit.text()
+        self.app.on_login(self.login_edit.text(), self.password_edit.text())
