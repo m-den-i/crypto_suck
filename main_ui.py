@@ -39,7 +39,6 @@ class Client:
 
 def main():
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8084/google/'))
-    client.connect()
 
     app = QApplication(sys.argv)
     ex = ClientApp(client)
