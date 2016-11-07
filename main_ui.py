@@ -1,3 +1,4 @@
+import os
 import sys
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
 from ui import LoginWidget
@@ -5,24 +6,29 @@ import crypto
 import requests
 
 
-def connect():
-    rsa_sucker = crypto.RSASucker()
-    resp = requests.post("http://127.0.0.1:8084/google/rsakey", data=rsa_sucker._pub)
-    dt = resp.json()['data']
-    dt = rsa_sucker.decrypt(dt, ['aesKey', 'ivector'])
-    aes_sucker = crypto.AESSucker(dt['aesKey'], dt['ivector'])
-    del dt['aesKey']
-    del dt['ivector']
+class Client:
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.rsa = crypto.RSASucker()
+        self.session_id = None
+        self.aes = None
 
+    def connect(self):
+        resp = requests.post(self.base_url + 'rsakey', data=self.rsa._pub)
+        dt = resp.json()['data']
+        self.session_id = dt['sessionId']
+        dt = self.rsa.decrypt(dt, ['aesKey', 'ivector'])
+        self.aes = crypto.AESSucker(dt['aesKey'], dt['ivector'])
 
 
 
 def main():
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8084/google/'))
+
     app = QApplication(sys.argv)
     ex = LoginWidget()
     ex.show()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
-    connect()
     main()
