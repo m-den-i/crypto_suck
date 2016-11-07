@@ -16,7 +16,7 @@ class Client:
         self.use_verification = use_verification
 
     def connect(self):
-        resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa._pub,
+        resp = requests.post(self.base_url + 'rsakey', json={'rsaKey': self.rsa.public,
                                                              'encryption': self.use_encryption,
                                                              'postCode': self.use_verification})
         dt = resp.json()['data']

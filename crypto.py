@@ -1,12 +1,12 @@
 import base64
-from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
 
 
 class RSASucker:
     def __init__(self, bits=2048, e=65537):
-        from Crypto.PublicKey import RSA
         new_key = RSA.generate(bits, e=e)
-        self._pub = base64.b64encode(new_key.publickey().exportKey("DER"))
+        self.public = base64.b64encode(new_key.publickey().exportKey("DER")).decode()
         self._rsa = PKCS1_OAEP.new(new_key)
 
     def decrypt(self, json, keys):
@@ -17,12 +17,24 @@ class RSASucker:
 
 
 class AESSucker:
-    def __init__(self, k, iv):
-        from Crypto.Cipher import AES
-        self._aes = AES.new(k, AES.MODE_OFB, IV=iv)
+    LENGTH = 16
+
+    def __init__(self, key, iv):
+        self.key = key
+        self.iv = iv
+
+    @property
+    def cipher(self):
+        return AES.new(self.key, AES.MODE_OFB, IV=self.iv)
 
     def encrypt(self, data):
-        return self._aes.encrypt(data)
+        if len(data) % self.LENGTH != 0:
+            missing = (self.LENGTH - len(data) % self.LENGTH)
+        else:
+            missing = self.LENGTH
+        data += chr(missing) * missing
+        return base64.b64encode(self.cipher.encrypt(data)).decode()
 
     def decrypt(self, data):
-        return self._aes.decrypt(data)
+        decrypted = self.cipher.decrypt(data)
+        return decrypted[:-ord(decrypted[-1])]
