@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
-from ui import Ui_MainWindow
+from ui import LoginWidget
 import crypto
 import requests
 
@@ -15,20 +15,14 @@ def connect():
     del dt['ivector']
 
 
-class Editor(QMainWindow):
-
-    def __init__(self):
-        super(Editor, self).__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-        self.show()
 
 
 def main():
     app = QApplication(sys.argv)
-    ex = Editor()
+    ex = LoginWidget()
+    ex.show()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
     connect()
-    # main`()
+    main()
