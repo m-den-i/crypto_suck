@@ -124,7 +124,7 @@ class CodeVerificationWidget(QtWidgets.QWidget):
         layout.addWidget(self.submit_button)
 
     def submit(self):
-        self.app.verify(self.code_edit.text())
+        self.app.on_verify(self.code_edit.text())
 
 
 class DocumentsWidget(QtWidgets.QWidget):
