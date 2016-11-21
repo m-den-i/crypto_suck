@@ -1,7 +1,7 @@
 import crypto
 import requests
-import time
 import base64
+
 
 class ServerError(Exception):
     pass
@@ -17,20 +17,22 @@ class Client:
         self.use_encryption = use_encryption
         self.use_verification = use_verification
 
-    def make_request(self, endpoint, data):
+    def make_request(self, endpoint, data, include_session=True, check_session=True):
+        if include_session:
+            data['sessionId'] = self.session_id
         response = requests.post(self.base_url + endpoint, json=data)
-        self.check_response(response)
-        return response.json()['data']
-
-    def check_response(self, response):
         if response.status_code != 200:
             raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
+
         data = response.json()
+
         if data['errorDto']['code'] is not None:
-            raise ServerError(response.json()['errorDto']['message'])
-        elif self.session_id and 'sessionId' in data and self.session_id != response.json()['data']['sessionId']:
+            raise ServerError(data['errorDto']['message'])
+        elif check_session and self.session_id != data['data']['sessionId']:
             # Should be another exception
             raise ServerError('Invalid SessionID. ')
+
+        return data['data']
 
     def connect(self):
         data = {
@@ -38,7 +40,7 @@ class Client:
             'encryption': self.use_encryption,
             'postCode': self.use_verification
         }
-        data = self.make_request('rsakey', data)
+        data = self.make_request('rsakey', data, check_session=False)
 
         self.session_id = data['sessionId']
         if self.use_encryption:
@@ -47,7 +49,6 @@ class Client:
 
     def login(self, login, password):
         data = {
-            'sessionId': self.session_id,
             'login': self.encrypt(login),
             'password': self.encrypt(password),
         }
@@ -60,7 +61,6 @@ class Client:
     def verify(self, code):
         data = {
             'code': self.encrypt(code),
-            'sessionId': self.session_id
         }
 
         data = self.make_request('verify', data)
@@ -69,7 +69,7 @@ class Client:
     def build_token(self, data):
         self.totp = crypto.TOTP(self.decrypt(data['secret']))
         token = self.totp.token()
-        data = self.make_request('token', data={'sessionId': self.session_id, 'token': token})
+        data = self.make_request('token', data={'token': token}, check_session=False)
 
     def decrypt(self, data):
         return base64.b64decode(data) if not self.use_encryption else self.aes.decrypt(data)
