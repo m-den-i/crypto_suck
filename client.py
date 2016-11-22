@@ -72,6 +72,13 @@ class Client:
         token = self.totp.token()
         data = self.make_request('token', data={'token': token}, check_session=False)
 
+    def send_file(self, file_name):
+        data = {'token': self.totp.token(), 'sessionId': self.session_id}
+        with open(file_name, 'rb') as f:
+            response = requests.post(self.base_url + 'files?name={}'.format(file_name), data=data, files={'file': f})
+        # print(response, response['data'])
+        return response, response.json()
+
     def decrypt(self, data):
         return base64.b64decode(data) if not self.use_encryption else self.aes.decrypt(data)
 
