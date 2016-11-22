@@ -147,8 +147,8 @@ class DocumentsWidget(QtWidgets.QWidget):
         layout.addWidget(self.list_view)
 
     def select_file(self):
-        file = QtWidgets.QFileDialog.getOpenFileName()
-        print(file)
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName()
+        self.app.client.send_file(filename)
 
     def show_documents(self, documents):
         self.list_view.addItems([doc['name'] for doc in documents])
