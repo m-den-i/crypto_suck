@@ -1,7 +1,7 @@
 import crypto
 import requests
 import base64
-
+import functools as _fn
 
 class ServerError(Exception):
     pass
@@ -17,10 +17,11 @@ class Client:
         self.use_encryption = use_encryption
         self.use_verification = use_verification
 
-    def make_request(self, endpoint, data, include_session=True, check_session=True):
+    def make_request(self, endpoint, data, include_session=True, check_session=True, method='post'):
         if include_session:
             data['sessionId'] = self.session_id
-        response = requests.post(self.base_url + endpoint, json=data)
+        request = _fn.partial(getattr(requests, method), self.base_url + endpoint)
+        response = request(json=data)
         if response.status_code != 200:
             raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 
