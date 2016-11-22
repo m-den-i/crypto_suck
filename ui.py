@@ -60,6 +60,7 @@ class ClientApp(QtWidgets.QWidget):
         try:
             self.client.verify(code)
             self.change_view(self.DOCUMENTS)
+            self.documents.show_documents(self.client.get_files())
         except ServerError as e:
             self.show_error(str(e))
 
@@ -137,7 +138,37 @@ class DocumentsWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
+        open_file = QtWidgets.QPushButton('Add file')
+        open_file.clicked.connect(self.select_file)
+        layout.addWidget(open_file)
+
         layout.addWidget(QtWidgets.QLabel('Well done!'))
+        self.list_view = QtWidgets.QListView()
+        layout.addWidget(self.list_view)
+
+    def select_file(self):
+        file = QtWidgets.QFileDialog.getOpenFileName()
+        print(file)
+
+    def show_documents(self, documents):
+        self.list_view.addItems([doc['name'] for doc in documents])
+
+
+class FileWidget(QtWidgets.QWidget):
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.title = QtWidgets.QLabel()
+        self.label = QtWidgets.QLabel()
+        layout.addWidget(self.title)
+        layout.addWidget(self.label)
+
+    def show_document(self, name, content):
+        self.title.setText(name)
+        self.label.setText(content)
 
 
 if __name__ == '__main__':

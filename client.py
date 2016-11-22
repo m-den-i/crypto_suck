@@ -72,6 +72,10 @@ class Client:
         token = self.totp.token()
         data = self.make_request('token', data={'token': token}, check_session=False)
 
+    def get_files(self):
+        data = self.make_request('files', data={'token': self.totp.token()}, check_session=False, method='get')
+        return data
+
     def send_file(self, file_name):
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
