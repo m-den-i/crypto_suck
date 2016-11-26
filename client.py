@@ -30,6 +30,7 @@ class Client:
         self.totp = None
         self.use_encryption = use_encryption
         self.use_verification = use_verification
+        self._files = {}
 
     def make_request(self, endpoint, data, include_session=True, check_session=True, method='post'):
         if include_session:
@@ -85,10 +86,12 @@ class Client:
         self.totp = crypto.TOTP(self.decrypt(data['secret']))
         token = self.totp.token()
         data = self.make_request('token', data={'token': token}, check_session=False)
+        return data
 
     def get_files(self):
         data = self.session.get('files', params={'token': self.totp.token(),
                                                  'sessionId': self.session_id}).json()['data']
+        self._files = {f['name']: f for f in data}
         return data
 
     def send_file(self, file_name):
@@ -103,6 +106,16 @@ class Client:
     def encrypt(self, data):
         return base64.b64encode(bytes(data, 'utf-8')).decode() if not self.use_encryption else self.aes.encrypt(data)
 
+    def get_file(self, name):
+        if name not in self._files:
+            self.get_files()
+
+        response = self.session.get('files/' + self._files[name]['googleId'],
+                               params={'sessionId': self.session_id, 'token': self.totp.token()})
+        if response.status_code == 200:
+            return dict(name=name, content=response.content.decode())
+
+        ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 
 if __name__ == '__main__':
     import os
