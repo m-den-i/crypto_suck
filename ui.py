@@ -5,11 +5,12 @@ from client import ServerError
 
 
 class ClientApp(QtWidgets.QWidget):
-    STACK, LOGIN, VERIFY, DOCUMENTS = range(4)
+    STACK, LOGIN, VERIFY, DOCUMENTS, FILE = range(5)
 
     def __init__(self, client, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client = client
+        self.cycle = True
 
         layout = QtWidgets.QVBoxLayout(self)
         self.error_message = QtWidgets.QLabel()
@@ -29,6 +30,9 @@ class ClientApp(QtWidgets.QWidget):
 
         self.documents = DocumentsWidget(self)
         self.stacked.addWidget(self.documents)
+
+        self.file = FileWidget(self)
+        self.stacked.addWidget(self.file)
 
     def show_error(self, message):
         self.error_message.setText(message)
@@ -52,17 +56,35 @@ class ClientApp(QtWidgets.QWidget):
             return
         try:
             self.client.login(login, password)
-            self.change_view(self.VERIFY if self.client.use_verification else self.DOCUMENTS)
+            if self.client.use_verification:
+                self.change_view(self.VERIFY)
+            else:
+                self.show_documents()
         except ServerError as e:
             self.show_error(str(e))
 
     def on_verify(self, code):
         try:
             self.client.verify(code)
-            self.change_view(self.DOCUMENTS)
-            self.documents.show_documents(self.client.get_files())
+            self.show_documents()
         except ServerError as e:
             self.show_error(str(e))
+
+    def show_documents(self):
+        self.change_view(self.DOCUMENTS)
+        self.documents.show_documents(self.client.get_files())
+        if self.cycle:
+            self.cycle = False
+            self.update_documents()
+
+    @QtCore.pyqtSlot()
+    def update_documents(self):
+        self.documents.show_documents(self.client.get_files())
+        QtCore.QTimer.singleShot(1000, self.update_documents)
+
+    def show_file(self, name):
+        self.change_view(self.FILE)
+        self.file.show_file(self.client.get_file(name))
 
 
 class StackWidget(QtWidgets.QWidget):
@@ -143,14 +165,17 @@ class DocumentsWidget(QtWidgets.QWidget):
         layout.addWidget(open_file)
 
         layout.addWidget(QtWidgets.QLabel('Well done!'))
-        self.list_view = QtWidgets.QListView()
+        self.list_view = QtWidgets.QListWidget()
+        self.list_view.itemDoubleClicked.connect(lambda: self.app.show_file(self.list_view.currentItem().text()))
         layout.addWidget(self.list_view)
 
     def select_file(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName()
         self.app.client.send_file(filename)
+        self.app.update_documents()
 
     def show_documents(self, documents):
+        self.list_view.clear()
         self.list_view.addItems([doc['name'] for doc in documents])
 
 
@@ -161,14 +186,18 @@ class FileWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
+        back_button = QtWidgets.QPushButton('Back')
+        back_button.clicked.connect(self.app.show_documents)
+        layout.addWidget(back_button)
+
         self.title = QtWidgets.QLabel()
         self.label = QtWidgets.QLabel()
         layout.addWidget(self.title)
         layout.addWidget(self.label)
 
-    def show_document(self, name, content):
-        self.title.setText(name)
-        self.label.setText(content)
+    def show_file(self, data):
+        self.title.setText(data['name'])
+        self.label.setText(data['content'])
 
 
 if __name__ == '__main__':
