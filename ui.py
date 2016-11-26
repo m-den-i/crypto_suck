@@ -171,8 +171,9 @@ class DocumentsWidget(QtWidgets.QWidget):
 
     def select_file(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName()
-        self.app.client.send_file(filename)
-        self.app.update_documents()
+        if filename:
+            self.app.client.send_file(filename)
+            self.app.update_documents()
 
     def show_documents(self, documents):
         self.list_view.clear()
