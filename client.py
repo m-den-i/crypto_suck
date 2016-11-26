@@ -1,7 +1,21 @@
 import crypto
 import requests
 import base64
-import functools as _fn
+import os
+
+
+class Session(requests.Session):
+
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url
+
+    def get(self, url, **kwargs):
+        return super().get(self.base_url + url, **kwargs)
+
+    def post(self, url, **kwargs):
+        return super().post(self.base_url + url, **kwargs)
+
 
 class ServerError(Exception):
     pass
@@ -9,7 +23,7 @@ class ServerError(Exception):
 
 class Client:
     def __init__(self, base_url, use_encryption=True, use_verification=False):
-        self.base_url = base_url
+        self.session = Session(base_url)
         self.rsa = crypto.RSASucker()
         self.session_id = None
         self.aes = None
@@ -20,8 +34,8 @@ class Client:
     def make_request(self, endpoint, data, include_session=True, check_session=True, method='post'):
         if include_session:
             data['sessionId'] = self.session_id
-        request = _fn.partial(getattr(requests, method), self.base_url + endpoint)
-        response = request(json=data)
+        request = getattr(self.session, method)
+        response = request(endpoint, json=data)
         if response.status_code != 200:
             raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 
@@ -73,14 +87,14 @@ class Client:
         data = self.make_request('token', data={'token': token}, check_session=False)
 
     def get_files(self):
-        data = self.make_request('files', data={'token': self.totp.token()}, check_session=False, method='get')
+        data = self.session.get('files', params={'token': self.totp.token(),
+                                                 'sessionId': self.session_id}).json()['data']
         return data
 
     def send_file(self, file_name):
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
-            response = requests.post(self.base_url + 'files?name={}'.format(file_name), data=data, files={'file': f})
-        # print(response, response['data'])
+            response = self.session.post('files?name={}'.format(os.path.basename(file_name)), data=data, files={'file': f})
         return response, response.json()
 
     def decrypt(self, data):
