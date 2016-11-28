@@ -184,14 +184,14 @@ class DocumentsWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        open_file = QtWidgets.QPushButton('Add file')
-        open_file.clicked.connect(self.open_file_dialog)
-        layout.addWidget(open_file)
-
         layout.addWidget(QtWidgets.QLabel('Well done!'))
         self.list_view = QtWidgets.QListWidget()
         self.list_view.itemDoubleClicked.connect(self.select_document)
         layout.addWidget(self.list_view)
+
+        open_file = QtWidgets.QPushButton('Add file')
+        open_file.clicked.connect(self.open_file_dialog)
+        layout.addWidget(open_file)
 
     def open_file_dialog(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName()
