@@ -91,6 +91,9 @@ class Client:
     def get_files(self):
         data = self.session.get('files', params={'token': self.totp.token(),
                                                  'sessionId': self.session_id}).json()['data']
+        data = [
+            {'name': self.decrypt(f.pop('name')).decode(), **f} for f in data
+        ]
         self._files = {f['name']: f for f in data}
         return data
 
@@ -123,3 +126,4 @@ if __name__ == '__main__':
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
     client.connect()
     client.login(*sys.argv[1:])
+    print(client.get_files())
