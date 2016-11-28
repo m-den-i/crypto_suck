@@ -105,7 +105,9 @@ class Client:
     def send_file(self, file_name):
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
-            response = self.session.post('files?name={}'.format(os.path.basename(file_name)), data=data, files={'file': f})
+            encrypted = self.aes.encrypt(f.read().decode(), use_b64=False)
+            response = self.session.post('files?name={}'.format(os.path.basename(file_name)),
+                                         data=data, files={'file': encrypted})
         return response, response.json()
 
     def decrypt(self, data):
@@ -121,7 +123,8 @@ class Client:
         response = self.session.get('files/' + self._files[name]['googleId'],
                                     params={'sessionId': self.session_id, 'token': self.totp.token()})
         if response.status_code == 200:
-            return dict(name=name, content=response.json()['data']['content'])
+            content = response.json()['data']['content']
+            return dict(name=name, content=self.decrypt(content).decode())
 
         ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 
@@ -140,4 +143,3 @@ if __name__ == '__main__':
     client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
     client.connect()
     client.login(*sys.argv[1:])
-    print(client.get_files())

@@ -27,16 +27,23 @@ class AESSucker:
     def cipher(self):
         return AES.new(self.key, AES.MODE_OFB, IV=self.iv)
 
-    def encrypt(self, data):
+    def encrypt(self, data, use_b64=True):
         if len(data) % self.LENGTH != 0:
             missing = (self.LENGTH - len(data) % self.LENGTH)
         else:
             missing = self.LENGTH
         data += chr(missing) * missing
-        return base64.b64encode(self.cipher.encrypt(data)).decode()
+        result = self.cipher.encrypt(data)
 
-    def decrypt(self, data):
-        decrypted = self.cipher.decrypt(base64.b64decode(data))
+        if use_b64:
+            result = base64.b64encode(result).decode()
+
+        return result
+
+    def decrypt(self, data, use_b64=True):
+        if use_b64:
+            data = base64.b64decode(data)
+        decrypted = self.cipher.decrypt(data)
         return decrypted[:-decrypted[-1]]
 
 
