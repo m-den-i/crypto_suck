@@ -1,3 +1,5 @@
+import binascii
+
 import crypto
 import requests
 import base64
@@ -22,6 +24,12 @@ class Session(requests.Session):
 
 class ServerError(Exception):
     pass
+
+
+def decode(line):
+    if isinstance(line, bytes):
+        return line.decode()
+    return line
 
 
 class Client:
@@ -95,8 +103,8 @@ class Client:
         data = self.session.get('files', params={'token': self.totp.token(),
                                                  'sessionId': self.session_id}).json()['data']
         data = [
-            {'name': self.decrypt(f.pop('name')).decode(),
-             'googleId': self.decrypt(f.pop('googleId')).decode(),
+            {'name': decode(self.decrypt(f.pop('name'))),
+             'googleId': decode(self.decrypt(f.pop('googleId'))),
              **f} for f in data
         ]
         self._files = {f['name']: f for f in data}
@@ -105,16 +113,21 @@ class Client:
     def send_file(self, file_name):
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
-            encrypted = self.aes.encrypt(f.read().decode(), use_b64=False)
+            content = f.read().decode()
+            encrypted = self.encrypt(content, use_b64=False) if self.use_encryption else content
             response = self.session.post('files?name={}'.format(os.path.basename(file_name)),
                                          data=data, files={'file': encrypted})
         return response, response.json()
 
     def decrypt(self, data):
-        return base64.b64decode(data) if not self.use_encryption else self.aes.decrypt(data)
+        try:
+            data = base64.b64decode(data)
+        except binascii.Error as e:
+            pass
+        return data if not self.use_encryption else self.aes.decrypt(data, use_b64=False)
 
-    def encrypt(self, data):
-        return base64.b64encode(bytes(data, 'utf-8')).decode() if not self.use_encryption else self.aes.encrypt(data)
+    def encrypt(self, data, **kwargs):
+        return base64.b64encode(bytes(data, 'utf-8')).decode() if not self.use_encryption else self.aes.encrypt(data, **kwargs)
 
     def get_file(self, name):
         if name not in self._files:
