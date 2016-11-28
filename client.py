@@ -16,6 +16,9 @@ class Session(requests.Session):
     def post(self, url, **kwargs):
         return super().post(self.base_url + url, **kwargs)
 
+    def delete(self, url, **kwargs):
+        return super().delete(self.base_url + url, **kwargs)
+
 
 class ServerError(Exception):
     pass
@@ -92,7 +95,9 @@ class Client:
         data = self.session.get('files', params={'token': self.totp.token(),
                                                  'sessionId': self.session_id}).json()['data']
         data = [
-            {'name': self.decrypt(f.pop('name')).decode(), **f} for f in data
+            {'name': self.decrypt(f.pop('name')).decode(),
+             'googleId': self.decrypt(f.pop('googleId')).decode(),
+             **f} for f in data
         ]
         self._files = {f['name']: f for f in data}
         return data
@@ -114,11 +119,20 @@ class Client:
             self.get_files()
 
         response = self.session.get('files/' + self._files[name]['googleId'],
-                               params={'sessionId': self.session_id, 'token': self.totp.token()})
+                                    params={'sessionId': self.session_id, 'token': self.totp.token()})
         if response.status_code == 200:
-            return dict(name=name, content=response.content.decode())
+            return dict(name=name, content=response.json()['data']['content'])
 
         ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
+
+    def delete_file(self, name):
+        if name not in self._files:
+            self.get_files()
+
+        response = self.session.delete('files/' + self._files[name]['googleId'],
+                                       params={'sessionId': self.session_id, 'token': self.totp.token()})
+        return response.content
+
 
 if __name__ == '__main__':
     import os
