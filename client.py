@@ -113,11 +113,20 @@ class Client:
     def send_file(self, file_name):
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
-            content = f.read().decode()
+            content = f.read()
             encrypted = self.encrypt(content, use_b64=False) if self.use_encryption else content
             response = self.session.post('files?name={}'.format(os.path.basename(file_name)),
                                          data=data, files={'file': encrypted})
         return response, response.json()
+
+    def default(self):
+        self.base_url = 'http://127.0.0.1:8080/'
+        self.connect()
+        self.login('m-den-i@yandex.by', 'password')
+    #
+    # def get_file(self, id):
+    #     response = requests.get(self.base_url + 'files/{}'.format(id), )
+    #     return response
 
     def decrypt(self, data):
         try:
@@ -137,7 +146,7 @@ class Client:
                                     params={'sessionId': self.session_id, 'token': self.totp.token()})
         if response.status_code == 200:
             content = response.json()['data']['content']
-            return dict(name=name, content=self.decrypt(content).decode())
+            return dict(name=name, content=self.decrypt(content))
 
         ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 

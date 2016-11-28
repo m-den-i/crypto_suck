@@ -32,7 +32,9 @@ class AESSucker:
             missing = (self.LENGTH - len(data) % self.LENGTH)
         else:
             missing = self.LENGTH
-        data += chr(missing) * missing
+        if type(data) is str:
+            data = data.encode()
+        data += chr(missing).encode() * missing
         result = self.cipher.encrypt(data)
 
         if use_b64:

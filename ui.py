@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtGui import QPixmap
+
 from client import ServerError
+from settings import SETTINGS
 
 
 class ClientApp(QtWidgets.QWidget):
@@ -37,6 +40,7 @@ class ClientApp(QtWidgets.QWidget):
 
         self.file = FileWidget()
         self.file.go_back.connect(self.show_documents)
+        self.file.file_deleted.connect(self.file_deleted)
         self.stacked.addWidget(self.file)
 
     def show_error(self, message):
@@ -48,6 +52,10 @@ class ClientApp(QtWidgets.QWidget):
     def change_view(self, index):
         self.hide_error()
         self.stacked.setCurrentIndex(index)
+
+    @QtCore.pyqtSlot(str)
+    def file_deleted(self, name):
+        self.client.delete_file(name)
 
     @QtCore.pyqtSlot(bool, bool)
     def set_stack(self, encryption, verification):
@@ -208,6 +216,7 @@ class DocumentsWidget(QtWidgets.QWidget):
 
 class FileWidget(QtWidgets.QWidget):
     go_back = QtCore.pyqtSignal()
+    file_deleted = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -217,28 +226,40 @@ class FileWidget(QtWidgets.QWidget):
         self.title = QtWidgets.QLabel()
         self.title.setStyleSheet("font-size: 18px; font-weight: bold;")
         self.label = QtWidgets.QLabel()
+        back_button = QtWidgets.QPushButton('Back')
+        delete_button = QtWidgets.QPushButton('Delete')
+        layout.addWidget(back_button)
+        layout.addWidget(delete_button)
         layout.addWidget(self.title)
         layout.addWidget(self.label)
-
         layout.addStretch()
-        back_button = QtWidgets.QPushButton('Back')
+
         back_button.clicked.connect(self.go_back)
-        layout.addWidget(back_button)
+        delete_button.clicked.connect(self.delete_file)
 
     def display(self, data):
-        self.title.setText(data['name'])
-        self.label.setText(data['content'])
+        self._data = data
+        ext = data['name'].split('.')[-1]
+        if ext in SETTINGS['formats']['text']:
+            self.title.setText(data['name'])
+            self.label.setText(data['content'].decode())
+        elif ext in SETTINGS['formats']['image']:
+            qp = QPixmap()
+            qp.loadFromData(data['content'])
+            self.label.setPixmap(qp)
+        else:
+            self.label.setText('Format is not supported.')
 
+    def delete_file(self):
+        self.file_deleted.emit(self._data['name'])
+        self.label.setText('File deleted, press back.')
 
 if __name__ == '__main__':
     import os
     import sys
     from client import Client
 
-    if len(sys.argv) > 1:
-        url = sys.argv[1]
-    else:
-        url = os.environ.get('BASE_URL', 'http://127.0.0.1:8080/')
+    url = SETTINGS['URL']
     client = Client(url)
     app = QtWidgets.QApplication(sys.argv)
     ex = ClientApp(client)
