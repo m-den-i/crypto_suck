@@ -192,7 +192,6 @@ class DocumentsWidget(QtWidgets.QWidget):
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        layout.addWidget(QtWidgets.QLabel('Well done!'))
         self.list_view = QtWidgets.QListWidget()
         self.list_view.itemDoubleClicked.connect(self.select_document)
         layout.addWidget(self.list_view)
@@ -226,14 +225,15 @@ class FileWidget(QtWidgets.QWidget):
         self.title = QtWidgets.QLabel()
         self.title.setStyleSheet("font-size: 18px; font-weight: bold;")
         self.label = QtWidgets.QLabel()
-        back_button = QtWidgets.QPushButton('Back')
-        delete_button = QtWidgets.QPushButton('Delete')
-        layout.addWidget(back_button)
-        layout.addWidget(delete_button)
+
         layout.addWidget(self.title)
         layout.addWidget(self.label)
         layout.addStretch()
 
+        back_button = QtWidgets.QPushButton('Back')
+        delete_button = QtWidgets.QPushButton('Delete')
+        layout.addWidget(back_button)
+        layout.addWidget(delete_button)
         back_button.clicked.connect(self.go_back)
         delete_button.clicked.connect(self.delete_file)
 
