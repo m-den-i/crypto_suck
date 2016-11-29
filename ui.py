@@ -244,6 +244,7 @@ class FileWidget(QtWidgets.QWidget):
             self.title.setText(data['name'])
             self.label.setText(data['content'].decode())
         elif ext in SETTINGS['formats']['image']:
+            self.title.setText(data['name'])
             qp = QPixmap()
             qp.loadFromData(data['content'])
             self.label.setPixmap(qp)
