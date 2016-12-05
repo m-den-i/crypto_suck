@@ -1,5 +1,3 @@
-import binascii
-
 import crypto
 import requests
 import base64
@@ -7,19 +5,12 @@ import os
 
 
 class Session(requests.Session):
-
     def __init__(self, base_url):
         super().__init__()
         self.base_url = base_url
 
-    def get(self, url, **kwargs):
-        return super().get(self.base_url + url, **kwargs)
-
-    def post(self, url, **kwargs):
-        return super().post(self.base_url + url, **kwargs)
-
-    def delete(self, url, **kwargs):
-        return super().delete(self.base_url + url, **kwargs)
+    def request(self, method, url, *args, **kwargs):
+        return super().request(method, self.base_url + url, *args, **kwargs)
 
 
 class ServerError(Exception):
@@ -29,6 +20,12 @@ class ServerError(Exception):
 def decode(line):
     if isinstance(line, bytes):
         return line.decode()
+    return line
+
+
+def encode(line):
+    if isinstance(line, str):
+        return line.encode()
     return line
 
 
@@ -103,8 +100,8 @@ class Client:
         data = self.session.get('files', params={'token': self.totp.token(),
                                                  'sessionId': self.session_id}).json()['data']
         data = [
-            {'name': decode(self.decrypt(f.pop('name'))),
-             'googleId': decode(self.decrypt(f.pop('googleId'))),
+            {'name': decode(self.decrypt(f.pop('name'), use_b64=self.use_encryption)),
+             'googleId': decode(self.decrypt(f.pop('googleId'), use_b64=self.use_encryption)),
              **f} for f in data
         ]
         self._files = {f['name']: f for f in data}
@@ -114,8 +111,8 @@ class Client:
         data = {'token': self.totp.token(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
             content = f.read()
-            encrypted = self.encrypt(content, use_b64=False) if self.use_encryption else content
-            response = self.session.post('files?name={}'.format(os.path.basename(file_name)),
+            encrypted = self.encrypt(content, use_b64=False)
+            response = self.session.post('files', params={'name': os.path.basename(file_name)},
                                          data=data, files={'file': encrypted})
         return response, response.json()
 
@@ -123,20 +120,18 @@ class Client:
         self.base_url = 'http://127.0.0.1:8080/'
         self.connect()
         self.login('m-den-i@yandex.by', 'password')
-    #
-    # def get_file(self, id):
-    #     response = requests.get(self.base_url + 'files/{}'.format(id), )
-    #     return response
 
-    def decrypt(self, data):
-        try:
+    def decrypt(self, data, use_b64=True):
+        if use_b64:
             data = base64.b64decode(data)
-        except binascii.Error as e:
-            pass
-        return data if not self.use_encryption else self.aes.decrypt(data, use_b64=False)
+        return data if not self.use_encryption else self.aes.decrypt(data)
 
-    def encrypt(self, data, **kwargs):
-        return base64.b64encode(bytes(data, 'utf-8')).decode() if not self.use_encryption else self.aes.encrypt(data, **kwargs)
+    def encrypt(self, data, use_b64=True):
+        if self.use_encryption:
+            data = self.aes.encrypt(data)
+        if use_b64:
+            data = base64.b64encode(encode(data)).decode()
+        return data
 
     def get_file(self, name):
         if name not in self._files:
@@ -148,7 +143,7 @@ class Client:
             content = response.json()['data']['content']
             return dict(name=name, content=self.decrypt(content))
 
-        ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
+        raise ServerError('HTTP Response error: {} {}'.format(response.status_code, response.reason))
 
     def delete_file(self, name):
         if name not in self._files:
@@ -160,8 +155,8 @@ class Client:
 
 
 if __name__ == '__main__':
-    import os
     import sys
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
+
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'), use_encryption=False)
     client.connect()
     client.login(*sys.argv[1:])
