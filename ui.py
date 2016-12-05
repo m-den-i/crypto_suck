@@ -23,11 +23,11 @@ class ClientApp(QtWidgets.QWidget):
         layout.addLayout(self.stacked)
 
         self.stack = StackWidget()
-        self.stack.submited.connect(self.set_stack)
+        self.stack.submit.connect(self.set_stack)
         self.stacked.addWidget(self.stack)
 
         self.login = LoginWidget()
-        self.login.submitted.connect(self.on_login)
+        self.login.submit.connect(self.on_login)
         self.stacked.addWidget(self.login)
 
         self.verify = CodeVerificationWidget()
@@ -35,12 +35,12 @@ class ClientApp(QtWidgets.QWidget):
 
         self.documents = DocumentsWidget()
         self.documents.add_file.connect(self.send_file)
-        self.documents.file_selected.connect(self.show_file)
+        self.documents.select_file.connect(self.show_file)
         self.stacked.addWidget(self.documents)
 
         self.file = FileWidget()
         self.file.go_back.connect(self.show_documents)
-        self.file.file_deleted.connect(self.file_deleted)
+        self.file.delete_file.connect(self.delete_file)
         self.stacked.addWidget(self.file)
 
     def show_error(self, message):
@@ -54,8 +54,10 @@ class ClientApp(QtWidgets.QWidget):
         self.stacked.setCurrentIndex(index)
 
     @QtCore.pyqtSlot(str)
-    def file_deleted(self, name):
-        self.client.delete_file(name)
+    def delete_file(self, name):
+        if self.client.delete_file(name):
+            self.show_error("File '{}' was deleted.".format(name))
+        self.show_documents()
 
     @QtCore.pyqtSlot(bool, bool)
     def set_stack(self, encryption, verification):
@@ -113,7 +115,7 @@ class ClientApp(QtWidgets.QWidget):
 
 
 class StackWidget(QtWidgets.QWidget):
-    submited = QtCore.pyqtSignal(bool, bool)
+    submit = QtCore.pyqtSignal(bool, bool)
 
     def __init__(self):
         super().__init__()
@@ -131,12 +133,12 @@ class StackWidget(QtWidgets.QWidget):
         layout.addWidget(ok_button)
 
     def on_submit(self):
-        self.submited.emit(self.encryption_check.isChecked(),
-                           self.verify_code.isChecked())
+        self.submit.emit(self.encryption_check.isChecked(),
+                         self.verify_code.isChecked())
 
 
 class LoginWidget(QtWidgets.QWidget):
-    submitted = QtCore.pyqtSignal(str, str)
+    submit = QtCore.pyqtSignal(str, str)
 
     def __init__(self):
         super().__init__()
@@ -161,11 +163,11 @@ class LoginWidget(QtWidgets.QWidget):
         layout.addWidget(submit_button)
 
     def on_submit(self):
-        self.submitted.emit(self.login_edit.text(), self.password_edit.text())
+        self.submit.emit(self.login_edit.text(), self.password_edit.text())
 
 
 class CodeVerificationWidget(QtWidgets.QWidget):
-    submitted = QtCore.pyqtSignal(str)
+    submit = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -180,12 +182,12 @@ class CodeVerificationWidget(QtWidgets.QWidget):
         layout.addWidget(submit_button)
 
     def on_submit(self):
-        self.submitted.emit(self.code_edit.text())
+        self.submit.emit(self.code_edit.text())
 
 
 class DocumentsWidget(QtWidgets.QWidget):
     add_file = QtCore.pyqtSignal(str)
-    file_selected = QtCore.pyqtSignal(str)
+    select_file = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -193,7 +195,7 @@ class DocumentsWidget(QtWidgets.QWidget):
         layout = QtWidgets.QVBoxLayout(self)
 
         self.list_view = QtWidgets.QListWidget()
-        self.list_view.itemDoubleClicked.connect(self.select_document)
+        self.list_view.itemDoubleClicked.connect(self.on_select)
         layout.addWidget(self.list_view)
 
         open_file = QtWidgets.QPushButton('Add file')
@@ -201,12 +203,14 @@ class DocumentsWidget(QtWidgets.QWidget):
         layout.addWidget(open_file)
 
     def open_file_dialog(self):
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName()
+        file_filter = ';;'.join('{} ({})'.format(name.capitalize(), ' '.join('*.' + name for name in formats))
+                                for name, formats in SETTINGS['formats'].items())
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Add file', filter=file_filter)
         if filename:
             self.add_file.emit(filename)
 
-    def select_document(self):
-        self.file_selected.emit(self.list_view.currentItem().text())
+    def on_select(self):
+        self.select_file.emit(self.list_view.currentItem().text())
 
     def display(self, documents):
         self.list_view.clear()
@@ -215,7 +219,7 @@ class DocumentsWidget(QtWidgets.QWidget):
 
 class FileWidget(QtWidgets.QWidget):
     go_back = QtCore.pyqtSignal()
-    file_deleted = QtCore.pyqtSignal(str)
+    delete_file = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -235,7 +239,7 @@ class FileWidget(QtWidgets.QWidget):
         layout.addWidget(back_button)
         layout.addWidget(delete_button)
         back_button.clicked.connect(self.go_back)
-        delete_button.clicked.connect(self.delete_file)
+        delete_button.clicked.connect(self.on_delete)
 
     def display(self, data):
         self._data = data
@@ -251,12 +255,12 @@ class FileWidget(QtWidgets.QWidget):
         else:
             self.label.setText('Format is not supported.')
 
-    def delete_file(self):
-        self.file_deleted.emit(self._data['name'])
-        self.label.setText('File deleted, press back.')
+    def on_delete(self):
+        self.delete_file.emit(self._data['name'])
+        self.label.setText('No file.')
+
 
 if __name__ == '__main__':
-    import os
     import sys
     from client import Client
 
