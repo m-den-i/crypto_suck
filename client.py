@@ -92,12 +92,12 @@ class Client:
 
     def build_token(self, data):
         self.totp = crypto.TOTP(self.decrypt(data['secret']))
-        token = self.totp.token()
+        token = self.totp.compute()
         data = self.make_request('token', data={'token': token}, check_session=False)
         return data
 
     def get_files(self):
-        data = self.session.get('files', params={'token': self.totp.token(),
+        data = self.session.get('files', params={'token': self.totp.compute(),
                                                  'sessionId': self.session_id}).json()['data']
         data = [
             {'name': decode(self.decrypt(f.pop('name'), use_b64=self.use_encryption)),
@@ -108,7 +108,7 @@ class Client:
         return data
 
     def send_file(self, file_name):
-        data = {'token': self.totp.token(), 'sessionId': self.session_id}
+        data = {'token': self.totp.compute(), 'sessionId': self.session_id}
         with open(file_name, 'rb') as f:
             content = f.read()
             encrypted = self.encrypt(content, use_b64=False)
@@ -138,7 +138,7 @@ class Client:
             self.get_files()
 
         response = self.session.get('files/' + self._files[name]['googleId'],
-                                    params={'sessionId': self.session_id, 'token': self.totp.token()})
+                                    params={'sessionId': self.session_id, 'token': self.totp.compute()})
         if response.status_code == 200:
             content = response.json()['data']['content']
             return dict(name=name, content=self.decrypt(content))
@@ -150,13 +150,13 @@ class Client:
             self.get_files()
 
         response = self.session.delete('files/' + self._files[name]['googleId'],
-                                       params={'sessionId': self.session_id, 'token': self.totp.token()})
+                                       params={'sessionId': self.session_id, 'token': self.totp.compute()})
         return response.content
 
 
 if __name__ == '__main__':
     import sys
 
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'), use_encryption=False)
+    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
     client.connect()
     client.login(*sys.argv[1:])
