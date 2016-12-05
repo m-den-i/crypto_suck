@@ -77,7 +77,7 @@ class ClientApp(QtWidgets.QWidget):
                 self.change_view(self.VERIFY)
             else:
                 self.show_documents()
-        except ServerError as e:
+        except (ServerError, ValueError) as e:
             self.show_error(str(e))
 
     @QtCore.pyqtSlot(str)
