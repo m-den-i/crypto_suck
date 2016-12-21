@@ -1,3 +1,4 @@
+from OpenSSL.crypto import load_publickey, FILETYPE_ASN1
 import crypto
 import requests
 import base64
@@ -76,29 +77,54 @@ def encode(line):
 
 
 class Client:
-    def __init__(self, base_url, use_encryption=True, use_verification=False):
+    def __init__(self, login, password, base_url, use_encryption=True, use_verification=False):
+        self.login = login
+        self.password = password
         self.session = Session(base_url)
-        self.rsa = crypto.RSASucker()
         self.aes = None
         self.use_encryption = use_encryption
         self.use_verification = use_verification
+        if self.use_encryption:
+            with open('key.priv', 'rb') as f:
+                self.rsa = crypto.RSASucker(f.read())
+
         self._files = {}
 
     def connect(self):
         """ Exchange public and aes keys with the server. """
         data = {
-            'rsaKey': self.rsa.public if self.use_encryption else '',
+            'login': self.login,
             'encryption': self.use_encryption,
             'postCode': self.use_verification
         }
-        data = self.session.post('rsakey', json=data)
+
+        data = self.session.post('logindto', json=data)
+
+        rsa = crypto.RSASucker(key=self.rsa.decrypt(data['rsaPublicPart1']) + self.rsa.decrypt(data['rsaPublicPart2']))
+
+        dh_public2 = self.rsa.decrypt(data['dhPublicPart1']) + self.rsa.decrypt(data['dhPublicPart2'])
+        dh = load_publickey(FILETYPE_ASN1, dh_public2)
+
+        private = dh.generate_key()
+
+        p, g = int.from_bytes(self.rsa.decrypt(data['pdhparam']), 'big'), int.from_bytes(self.rsa.decrypt(data['gdhparam']), 'big')
+        # Inline Diffie Hellman
+        public = pow(g, private, p).to_bytes(400, 'big').lstrip(b'\x00')
+        shared = pow(dh, private, p)
+
         self.session.id = data['sessionId']
 
+        data = self.session.post('dh', json={
+            'dhPublicPart1': base64.b64encode(rsa._rsa.encrypt(public[:200])).decode(),
+            'dhPublicPart2': base64.b64encode(rsa._rsa.encrypt(public[200:])).decode(),
+        })
+
+        print(data)
         if self.use_encryption:
             self.aes = crypto.AESSucker(self.rsa.decrypt(data['aesKey']),
                                         self.rsa.decrypt(data['ivector']))
 
-    def login(self, login, password):
+    def do_login(self, login, password):
         """ Send user's credentials to the server. """
         data = {
             'login': self.encrypt(login),
@@ -187,6 +213,6 @@ class Client:
 if __name__ == '__main__':
     import sys
 
-    client = Client(os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
+    client = Client(*sys.argv[1:], base_url=os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
     client.connect()
-    client.login(*sys.argv[1:])
+    client.get_files()

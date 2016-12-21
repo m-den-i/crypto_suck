@@ -8,11 +8,12 @@ from settings import SETTINGS
 
 
 class ClientApp(QtWidgets.QWidget):
-    STACK, LOGIN, VERIFY, DOCUMENTS, FILE = range(5)
+    LOGIN, VERIFY, DOCUMENTS, FILE = range(4)
 
-    def __init__(self, client, *args, **kwargs):
+    def __init__(self, url, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.client = client
+        self.url = url
+        self.client = None
         self.updating = False
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -21,10 +22,6 @@ class ClientApp(QtWidgets.QWidget):
 
         self.stacked = QtWidgets.QStackedLayout()
         layout.addLayout(self.stacked)
-
-        self.stack = StackWidget()
-        self.stack.submit.connect(self.set_stack)
-        self.stacked.addWidget(self.stack)
 
         self.login = LoginWidget()
         self.login.submit.connect(self.on_login)
@@ -66,13 +63,15 @@ class ClientApp(QtWidgets.QWidget):
         self.client.connect()
         self.change_view(self.LOGIN)
 
-    @QtCore.pyqtSlot(str, str)
-    def on_login(self, login, password):
+    @QtCore.pyqtSlot(str, str, bool, bool)
+    def on_login(self, login, password, use_encryption, use_verification):
         if not login or not password:
             self.show_error('Login and/or password cannot be empty.')
             return
         try:
-            self.client.login(login, password)
+            self.client = Client(login, password, base_url=self.url,
+                                 use_encryption=use_encryption, use_verification=use_verification)
+            self.client.connect()
             if self.client.use_verification:
                 self.change_view(self.VERIFY)
             else:
@@ -114,31 +113,8 @@ class ClientApp(QtWidgets.QWidget):
         return QtCore.QSize(400, 300)
 
 
-class StackWidget(QtWidgets.QWidget):
-    submit = QtCore.pyqtSignal(bool, bool)
-
-    def __init__(self):
-        super().__init__()
-
-        layout = QtWidgets.QVBoxLayout(self)
-
-        self.encryption_check = QtWidgets.QCheckBox('Encryption', checked=True)
-        layout.addWidget(self.encryption_check)
-
-        self.verify_code = QtWidgets.QCheckBox('Verify')
-        layout.addWidget(self.verify_code)
-
-        ok_button = QtWidgets.QPushButton('Ok')
-        ok_button.clicked.connect(self.on_submit)
-        layout.addWidget(ok_button)
-
-    def on_submit(self):
-        self.submit.emit(self.encryption_check.isChecked(),
-                         self.verify_code.isChecked())
-
-
 class LoginWidget(QtWidgets.QWidget):
-    submit = QtCore.pyqtSignal(str, str)
+    submit = QtCore.pyqtSignal(str, str, bool, bool)
 
     def __init__(self):
         super().__init__()
@@ -146,24 +122,36 @@ class LoginWidget(QtWidgets.QWidget):
         self.setObjectName('Login')
         self.setMinimumWidth(300)
 
-        layout = QtWidgets.QFormLayout()
+        layout = QtWidgets.QGridLayout()
         self.setLayout(layout)
 
         self.login_edit = QtWidgets.QLineEdit()
         self.login_edit.setMinimumWidth(200)
-        layout.addRow('Login:', self.login_edit)
+        layout.addWidget(QtWidgets.QLabel('Login:'), 0, 0)
+        layout.addWidget(self.login_edit, 0, 1)
 
         self.password_edit = QtWidgets.QLineEdit()
         self.password_edit.setEchoMode(QtWidgets.QLineEdit.Password)
         self.password_edit.setMinimumWidth(200)
-        layout.addRow('Password:', self.password_edit)
+        layout.addWidget(QtWidgets.QLabel('Password:'), 1, 0)
+        layout.addWidget(self.password_edit, 1, 1)
+
+        self.encryption_check = QtWidgets.QCheckBox('Encryption', checked=True)
+        layout.addWidget(self.encryption_check)
+
+        self.verify_code = QtWidgets.QCheckBox('Verify')
+        layout.addWidget(self.verify_code)
 
         submit_button = QtWidgets.QPushButton('Login')
         submit_button.clicked.connect(self.on_submit)
-        layout.addWidget(submit_button)
+        layout.addWidget(submit_button, 3, 0, 1, 2, QtCore.Qt.AlignHCenter)
+        layout.setAlignment(QtCore.Qt.AlignHCenter)
 
     def on_submit(self):
-        self.submit.emit(self.login_edit.text(), self.password_edit.text())
+        self.submit.emit(self.login_edit.text().strip(),
+                         self.password_edit.text().strip(),
+                         self.encryption_check.isChecked(),
+                         self.verify_code.isChecked())
 
 
 class CodeVerificationWidget(QtWidgets.QWidget):
@@ -265,8 +253,7 @@ if __name__ == '__main__':
     from client import Client
 
     url = SETTINGS['URL']
-    client = Client(url)
     app = QtWidgets.QApplication(sys.argv)
-    ex = ClientApp(client)
+    ex = ClientApp(url)
     ex.show()
     sys.exit(app.exec_())

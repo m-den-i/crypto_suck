@@ -4,13 +4,19 @@ import hashlib
 from hmac import new as hmac
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
+from Crypto.Random import get_random_bytes
 
 
 class RSASucker:
     """ Rivest Shamir Adleman public-key cryptosystem wrapper. """
 
-    def __init__(self, bits=2048, e=65537):
-        new_key = RSA.generate(bits, e=e)
+    def __init__(self, key=None, bits=2048, e=65537):
+        if key is None:
+            new_key = RSA.generate(bits=bits, e=e)
+        else:
+            new_key = RSA.importKey(key)
+            self._imported = new_key
+
         self.public = base64.b64encode(new_key.publickey().exportKey("DER")).decode()
         self._rsa = PKCS1_OAEP.new(new_key)
 
