@@ -107,23 +107,18 @@ class Client:
 
             dh_public_o = self.rsa.decrypt(data['dhPublicPart1']) + self.rsa.decrypt(data['dhPublicPart2'])
             dh_public, module, g, length = utils.DerCoder.load(dh_public_o)
-            # Note: dh_public more than module. It's curiously.
-
-            private = int.from_bytes(crypto.get_random_bytes(length + 1), 'big')
 
             # Inline Diffie Hellman
+            private = int.from_bytes(crypto.get_random_bytes(length // 8), 'big')
             public = pow(g, private, module)
             shared = pow(dh_public, private, module).to_bytes(64, 'big')
 
-            # Compute shared AES key. I'm sure it's incorrect.
-            h = hashlib.sha256()
-            h.update(shared)
-            key = h.digest()[:16]
+            # Compute aes key
+            sha = hashlib.sha256()
+            sha.update(shared)
+            key = sha.digest()[:16]
 
-            # A little hack here. The second line should be omitted, but it won't work.
-            # But it works in case you send back server's public key (as if you have the same private key)
             public = utils.DerCoder.dump(public)
-            public = utils.DerCoder.dump(dh_public)
 
             data = self.session.post('dh', json={
                 'dhPublicPart1': base64.b64encode(rsa._rsa.encrypt(public[:200])).decode(),
