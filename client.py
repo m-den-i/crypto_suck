@@ -1,8 +1,9 @@
-from OpenSSL.crypto import load_publickey, FILETYPE_ASN1
+import hashlib
 import crypto
 import requests
 import base64
 import os
+import utils
 
 
 class Session(requests.Session):
@@ -99,36 +100,42 @@ class Client:
         }
 
         data = self.session.post('logindto', json=data)
-
-        rsa = crypto.RSASucker(key=self.rsa.decrypt(data['rsaPublicPart1']) + self.rsa.decrypt(data['rsaPublicPart2']))
-
-        dh_public2 = self.rsa.decrypt(data['dhPublicPart1']) + self.rsa.decrypt(data['dhPublicPart2'])
-        dh = load_publickey(FILETYPE_ASN1, dh_public2)
-
-        private = dh.generate_key()
-
-        p, g = int.from_bytes(self.rsa.decrypt(data['pdhparam']), 'big'), int.from_bytes(self.rsa.decrypt(data['gdhparam']), 'big')
-        # Inline Diffie Hellman
-        public = pow(g, private, p).to_bytes(400, 'big').lstrip(b'\x00')
-        shared = pow(dh, private, p)
-
         self.session.id = data['sessionId']
 
-        data = self.session.post('dh', json={
-            'dhPublicPart1': base64.b64encode(rsa._rsa.encrypt(public[:200])).decode(),
-            'dhPublicPart2': base64.b64encode(rsa._rsa.encrypt(public[200:])).decode(),
-        })
-
-        print(data)
         if self.use_encryption:
-            self.aes = crypto.AESSucker(self.rsa.decrypt(data['aesKey']),
+            rsa = crypto.RSASucker(key=self.rsa.decrypt(data['rsaPublicPart1']) + self.rsa.decrypt(data['rsaPublicPart2']))
+
+            dh_public_o = self.rsa.decrypt(data['dhPublicPart1']) + self.rsa.decrypt(data['dhPublicPart2'])
+            dh_public, module, g, length = utils.DerCoder.load(dh_public_o)
+            # Note: dh_public more than module. It's curiously.
+
+            private = int.from_bytes(crypto.get_random_bytes(length + 1), 'big')
+
+            # Inline Diffie Hellman
+            public = pow(g, private, module)
+            shared = pow(dh_public, private, module).to_bytes(64, 'big')
+
+            # Compute shared AES key. I'm sure it's incorrect.
+            h = hashlib.sha256()
+            h.update(shared)
+            key = h.digest()[:16]
+
+            # A little hack here. The second line should be omitted, but it won't work.
+            # But it works in case you send back server's public key (as if you have the same private key)
+            public = utils.DerCoder.dump(public)
+            public = utils.DerCoder.dump(dh_public)
+
+            data = self.session.post('dh', json={
+                'dhPublicPart1': base64.b64encode(rsa._rsa.encrypt(public[:200])).decode(),
+                'dhPublicPart2': base64.b64encode(rsa._rsa.encrypt(public[200:])).decode(),
+            })
+
+            self.aes = crypto.AESSucker(key,
                                         self.rsa.decrypt(data['ivector']))
 
-    def do_login(self, login, password):
-        """ Send user's credentials to the server. """
         data = {
-            'login': self.encrypt(login),
-            'password': self.encrypt(password),
+            'login': self.encrypt(self.login),
+            'password': self.encrypt(self.password),
         }
 
         data = self.session.post('login', json=data)
@@ -215,4 +222,4 @@ if __name__ == '__main__':
 
     client = Client(*sys.argv[1:], base_url=os.environ.get('BASE_URL', 'http://127.0.0.1:8080/'))
     client.connect()
-    client.get_files()
+    print(client.get_files())
